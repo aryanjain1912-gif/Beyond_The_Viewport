@@ -147,3 +147,11 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+# private team notes (not for the public repo)
+PROJECT_CONTEXT.md
+
+# vercel deployment folder
+.vercel
+
+# system file
+.DS_Store
