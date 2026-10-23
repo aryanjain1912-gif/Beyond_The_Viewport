@@ -2,6 +2,8 @@
 
 **Team Beyond The Viewport (Team ID 76)** · Webster 2026 · MNNIT Allahabad (CodeSamgam)
 
+**Live site:** [Mystic Sanctum](https://mystic-sanctum.vercel.app)
+
 Mystic Sanctum is a full-stack refectory and meal-management application for **The Kamar-Taj Refectory**. Students can browse menus, record dietary preferences, reserve and cancel meals before cutoffs, and present one-use meal passes. Staff can verify passes at the counter, including queued scans captured during a network outage. Administrators can manage menus, schedules, roles, reports, and manual rebate ledger entries.
 
 ## Tech stack
