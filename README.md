@@ -2,80 +2,81 @@
 
 **Team Beyond The Viewport (Team ID 76)** · Webster 2026 · MNNIT Allahabad (CodeSamgam)
 
-Mystic Sanctum is our solution to the problem statement **The Kamar-Taj Refectory: Resource Engine & Atomic Meal Check-In**. It is a full-stack mess management platform with automated meal cutoffs and single-use cryptographic QR check-ins.
-
-## Process flow
-
-1. **User login:** separate access for students, mess staff and administrators.
-2. **Meal booking:** students view menus, book or cancel meals and set dietary preferences.
-3. **Cutoff management:** the system locks bookings after the deadline and generates expected meal counts for the kitchen.
-4. **QR check-in:** students receive time-limited QR passes, which staff scan to verify meal eligibility.
-5. **Duplicate prevention:** expired, invalid or already-redeemed passes are rejected.
-6. **Consumption tracking:** every successful check-in is recorded in the database.
-7. **Admin dashboard:** administrators manage menus, schedules, bookings and daily reports.
-
-## Features
-
-### Pass tier (core)
-
-- **Multi-role authentication:** separate login flows and dashboards for students, mess staff and admins.
-- **Dynamic menu and preference matrix:** interactive meal calendar to view menus, toggle bookings and save dietary preferences.
-- **Atomic cutoff engine:** meal changes are permanently locked once the preparation deadline passes, with real-time countdowns.
-- **Short-lifespan QR pass generator:** time-limited, rotating QR codes generated per student.
-- **Anti-duplicate verification ledger:** expired, invalid or already-scanned codes are rejected instantly.
-- **Real-time attendance ingestion:** consumption records update the moment staff scan a valid pass.
-- **Admin control console:** update weekly schedules, edit menus and generate daily reports, including head-count forecasts for the kitchen.
-
-### Victory tier (stretch goals)
-
-- **Offline scan queue:** a service-worker cached scanning client that stores check-ins offline, validates them with HMAC and syncs later.
-- **Automated rebate billing:** credit deductions and monthly rebate ledgers.
-- **Food waste analytics:** dashboards comparing projected and consumed meals, with surplus alerts.
-
-Priority goes to finishing and testing the Pass tier before starting any Victory-tier work.
+Mystic Sanctum is a full-stack refectory and meal-management application for **The Kamar-Taj Refectory**. Students can browse menus, record dietary preferences, reserve and cancel meals before cutoffs, and present one-use meal passes. Staff can verify passes at the counter, including queued scans captured during a network outage. Administrators can manage menus, schedules, roles, reports, and manual rebate ledger entries.
 
 ## Tech stack
 
-| Part | Choice | License |
-| --- | --- | --- |
-| Framework | Next.js (React, JavaScript): UI and API routes in one app | MIT |
-| Database and auth | Supabase (PostgreSQL, Row-Level Security) | MIT (client SDK) |
-| QR generation | `qrcode.react` | ISC |
-| QR scanning | `html5-qrcode` | Apache-2.0 |
-| Charts (stretch) | Chart.js | MIT |
-| Offline (stretch) | Service Workers (browser API) | n/a |
-
-## Architecture
-
-```
-[Next.js client UI] --HTTPS--> [Next.js API routes] --query--> [Supabase database]
-```
-
-When staff scan a QR code, the app posts the token to a Next.js API route. The route verifies the request and runs a database update in Supabase to mark the meal as redeemed.
-
-### Preventing double meal claims
-
-Checking `is_redeemed` and then updating it in two steps can fail when two scans arrive at nearly the same time. Instead, we validate and update in one atomic statement:
-
-```sql
-UPDATE meal_bookings
-SET is_redeemed = true
-WHERE id = :booking_id AND is_redeemed = false;
-```
-
-If the update changes 0 rows, the pass was already used and the scan is rejected. A unique constraint on `(student_id, meal_slot, date)` also blocks duplicate bookings.
+- Next.js App Router (JavaScript) and regular CSS
+- Supabase Auth and PostgreSQL with row-level security
+- `qrcode.react` for passes and `html5-qrcode` for camera scanning
+- Browser service worker and local storage for the offline scan queue
 
 ## Getting started
 
-```bash
-git clone https://github.com/aryanjain1912-gif/Beyond_The_Viewport.git
-cd Beyond_The_Viewport
-npm install
-cp .env.example .env.local   # then fill in the Supabase keys
-npm run dev
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Create a Supabase project. In **Project Settings → API**, copy the project URL and publishable key.
+
+3. Copy `.env.example` to `.env.local` and set:
+
+   ```dotenv
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-project-publishable-key
+   NEXT_PUBLIC_SITE_URL=http://localhost:3000
+   ```
+
+   Do not put a Supabase secret/service-role key in a `NEXT_PUBLIC_` variable or in client code. This application uses the publishable key with authenticated, row-level-security-protected requests.
+
+4. In the Supabase SQL Editor, run the SQL files in [`supabase/migrations`](./supabase/migrations) in chronological order. The initial migration creates the role-aware schema, RLS policies, booking/pass/check-in database functions, default meal slots, and clearly marked sample menus. The menu-dishes migration adds individual dish cards and preserves existing menu items.
+
+5. In **Authentication → URL Configuration**, set the Site URL to `http://localhost:3000` and add `http://localhost:3000/auth/confirm` to the redirect URL allow list. For a deployed site, set `NEXT_PUBLIC_SITE_URL` to its HTTPS origin and add the matching `/auth/confirm` URL to the allow list.
+
+6. Run the app:
+
+   ```bash
+   npm run dev
+   ```
+
+   Open <http://localhost:3000>. The public home page explains the setup state if the Supabase environment values are missing.
+
+### First administrator and staff accounts
+
+Open student registration creates student accounts only; a submitted role is never accepted from the browser. Create and confirm your account first, then use the Supabase SQL Editor to promote that account to the first administrator:
+
+```sql
+update public.profiles
+set role = 'admin'
+where email = 'your-confirmed-admin@example.com';
 ```
 
-Open http://localhost:3000. Note: camera scanning needs HTTPS (localhost works for development).
+Sign in again. From **Accounts & roles**, promote trusted registered accounts to `staff` or `admin`. The first administrator must be promoted through the SQL Editor because no administrator exists yet to grant that role. Database policies prevent users from granting themselves a role.
+
+If email confirmation is enabled in Supabase Auth, confirm the signup email before promotion and sign-in. Set the Supabase redirect allow list as described above.
+
+## How it works
+
+- **Student dashboard:** role-protected student pages for current menus, meal bookings, dietary preferences, booking/check-in history, one-use passes, and the rebate ledger.
+- **Booking cutoffs:** bookings and cancellations are performed by PostgreSQL functions that check role, published menu, date, and cutoff in `Asia/Kolkata`. Client-side time displays are informational only.
+- **Meal passes:** each pass is a high-entropy, one-use token; only its SHA-256 hash is stored. The database issues passes only for a confirmed booking and rejects expired, revoked, duplicate, or out-of-window check-ins atomically. Check-in is allowed only from the scheduled meal start through its scheduled end.
+- **Staff scanning:** camera scans and manual pass-code entry use the same server-verified check-in function. Successful checks create a unique attendance record.
+- **Offline queue:** in a production build, open `/offline-scan` while online to cache its app shell and scanner assets. During a network outage, scans can be queued in that browser’s local storage. After reconnecting, staff sign in and choose **Sync queue**. A queued scan is not attendance until the server validates it, and the server accepts it only during the scheduled meal window. This queue is device-local and is not shared between staff devices.
+- **Admin tools:** administrators manage menus and meal times, grant roles to existing accounts, set a reference meal allowance, and record student credits/debits. Menu editors can add up to ten dishes per meal, with an optional direct HTTPS photo URL from `images.unsplash.com` for each dish. Rebate entries are bookkeeping only; the app does not process money or issue automatic refunds.
+- **Reports:** utilization compares confirmed reservations with verified check-ins. Unclaimed reservations are only a planning signal, not a measurement of physical food waste.
+
+The staff camera needs camera permission and a secure context. `localhost` is considered secure for development; production deployments should use HTTPS. The service worker is enabled only in production builds.
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+```
+
+Live authentication, persistence, and scanner synchronization require a configured Supabase project and the SQL migration above.
 
 ## Team
 

@@ -155,3 +155,5 @@ PROJECT_CONTEXT.md
 
 # system file
 .DS_Store
+.env*
+!.env.example
