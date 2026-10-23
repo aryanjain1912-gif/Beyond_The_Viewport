@@ -1,70 +1,43 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import AuthForm from "./components/AuthForm";
+import AuthStory from "./components/AuthStory";
+import BrandEmblem from "./components/BrandEmblem";
+import { getCurrentProfile, roleHome } from "../lib/auth";
+import { getSupabaseConfig } from "../lib/supabase/config";
 
-// The three portals people can enter. Add or edit roles here.
-const roles = [
-  {
-    key: "student",
-    title: "Student",
-    icon: "✦",
-    text: "Book meals, track the cutoff countdown and show your QR pass.",
-  },
-  {
-    key: "staff",
-    title: "Mess Staff",
-    icon: "❂",
-    text: "Scan QR passes and verify meals at the refectory counter.",
-  },
-  {
-    key: "admin",
-    title: "Administrator",
-    icon: "✧",
-    text: "Manage menus, schedules, bookings and daily reports.",
-  },
-];
+export const metadata = {
+  title: "Mystic Sanctum — The Kamar-Taj Refectory",
+  description: "A meal booking and refectory management system.",
+};
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
+  const supabaseConfig = getSupabaseConfig();
+
+  if (supabaseConfig) {
+    const profile = await getCurrentProfile();
+    if (profile) redirect(roleHome(profile.role));
+  }
+
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16">
-      {/* Soft glowing circle behind the title */}
-      <div className="pointer-events-none absolute top-24 h-72 w-72 rounded-full bg-[#ff8a3d]/20 blur-3xl sm:h-96 sm:w-96" />
-
-      <header className="relative z-10 text-center">
-        <p className="mb-4 text-sm tracking-[0.4em] text-[#d4a84b]">
-          THE KAMAR-TAJ REFECTORY
-        </p>
-        <h1 className="font-serif text-5xl font-bold text-[#f3ead3] sm:text-7xl">
-          Mystic Sanctum
-        </h1>
-        <p className="mx-auto mt-6 max-w-xl text-base text-[#f3ead3]/70 sm:text-lg">
-          Daily sustenance, scheduled with precision. Book your meal, pass the
-          portal, and leave no food to waste.
-        </p>
-      </header>
-
-      <section className="relative z-10 mt-14 grid w-full max-w-4xl gap-6 sm:grid-cols-3">
-        {roles.map((role) => (
-          <Link
-            key={role.key}
-            href={`/login?role=${role.key}`}
-            className="group rounded-2xl border border-[#d4a84b]/30 bg-white/5 p-6 text-center backdrop-blur transition hover:-translate-y-1 hover:border-[#d4a84b] hover:shadow-[0_0_30px_rgba(255,138,61,0.25)]"
-          >
-            <div className="text-4xl text-[#d4a84b] transition group-hover:text-[#ff8a3d]">
-              {role.icon}
-            </div>
-            <h2 className="mt-4 font-serif text-2xl text-[#f3ead3]">
-              {role.title}
-            </h2>
-            <p className="mt-2 text-sm text-[#f3ead3]/60">{role.text}</p>
-            <span className="mt-5 inline-block text-sm font-medium text-[#d4a84b]">
-              Enter portal →
-            </span>
-          </Link>
-        ))}
+    <main className="auth-page">
+      <div className="auth-landscape" />
+      <Link className="auth-brand" href="/"><BrandEmblem /><span>Mystic Sanctum</span></Link>
+      <AuthStory />
+      <section className="auth-card">
+        <p className="section-kicker">THE KAMAR-TAJ REFECTORY</p>
+        <h1>Welcome back.</h1>
+        <p className="auth-intro">Sign in to manage your meals and meal pass.</p>
+        <AuthForm mode="login" />
+        {!supabaseConfig && (
+          <div className="setup-alert" role="status">
+            <strong>Supabase setup required</strong>
+            <p>Copy <code>.env.example</code> to <code>.env.local</code>, add your Supabase project values, and run the migration in <code>supabase/migrations</code>.</p>
+          </div>
+        )}
       </section>
-
-      <footer className="relative z-10 mt-16 text-xs text-[#f3ead3]/40">
-        Team Beyond The Viewport · Webster 2026 · MNNIT Allahabad
-      </footer>
+      <footer className="auth-credit">Designed by Team Beyond The Viewport</footer>
     </main>
   );
 }
